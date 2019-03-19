@@ -83,21 +83,33 @@ void iQr(std::vector<float>& outPut,const std::vector<int>& vec) //Inter Quartil
 int main() 
 {
     int n{};
+    std::vector<int> elem{};
+    std::vector<int> freq{};
     std::vector<int> vec{};
     std::string st;
     std::vector<float> outPut{};
 
     std::cin>>n;
     std::cin.ignore();
+
     std::getline(std::cin,st);
-    ParseStringVector(vec,st);
+    ParseStringVector(elem,st);
+
+    std::getline(std::cin,st);
+    ParseStringVector(freq,st);
     
-    iQr(outPut,vec);
+   for(int i =0; i<elem.size();i++)
+   {
+      for(int j=0;j<freq[i];j++)
+      {
+        vec.emplace_back(elem[i]);
+      }
+   }
     
-    for(int i=0;i<outPut.size();i++)
-    {           
-        std::cout<<std::setprecision(3)<<outPut[i]<<"\n";
-    }   
-    std::cout<<"\n";
+    iQr(outPut,vec);   
+
+    std::cout<<std::fixed<<std::setprecision(1)<<outPut[2]-outPut[0]<<"\n";
+
+   
      return 0;
 }
