@@ -1,6 +1,7 @@
 //Sample Outputs 
-//9
-//3 7 8 5 12 14 21 13 18
+//6
+//6 12 8 10 20 16
+//5 4 3 2 1 5
 
 #include <cmath>
 #include <vector>
@@ -25,14 +26,14 @@ void ParseStringVector(std::vector<int>& _vector, const std::string& _string)
 }
 
 template <typename  T>
-float Interporlation(T& x, T& y) 
+T Interporlation(T& x, T& y) 
 {
 
     return ((x+y)/2);      
 }
 
 template <typename  T>
-float Median(const std::vector<T>& vec)
+T Median(const std::vector<T>& vec)
 {
     std::vector<T> vec2 = vec;    
     std::sort(vec2.begin(), vec2.end());

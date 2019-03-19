@@ -25,14 +25,14 @@ void ParseStringVector(std::vector<int>& _vector, const std::string& _string)
 }
 
 template <typename  T>
-float Interporlation(T& x, T& y) 
+T Interporlation(T& x, T& y) 
 {
 
     return ((x+y)/2);      
 }
 
 template <typename  T>
-float Median(const std::vector<T>& vec)
+T Median(const std::vector<T>& vec)
 {
     std::vector<T> vec2 = vec;    
     std::sort(vec2.begin(), vec2.end());
