@@ -1,6 +1,10 @@
-//sample input
-//9
-//10 20 20 10 10 30 50 10 20
+/* https://www.hackerrank.com/challenges/sock-merchant/problem
+Sample input:
+9
+10 20 20 10 10 30 50 10 20
+Sample output:
+3
+*/
 
 
 #include <bits/stdc++.h>

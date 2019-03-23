@@ -1,3 +1,10 @@
+/* https://www.hackerrank.com/challenges/abstract-classes-polymorphism/problem
+Sample input:
+3 1
+set 1 2
+get 1
+get 2
+*/
 #include <iostream>
 #include <vector>
 #include <map>

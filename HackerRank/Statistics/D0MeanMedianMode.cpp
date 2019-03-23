@@ -1,7 +1,13 @@
-//Sample Input
-//10
-//64630 11735 14216 99233 14470 4978 73429 38120 51135 67060
-
+/* https://www.hackerrank.com/challenges/s10-basic-statistics/problem
+Sample input
+"10"                                                         = input count
+"64630 11735 14216 99233 14470 4978 73429 38120 51135 67060" = inputs
+-------------------------------------------------------------------------
+Sample output:
+"43900.6"  - mean
+"44627.5"  - median
+"4978"     - mode
+*/
 #include <iostream>
 #include <vector>
 #include <string>

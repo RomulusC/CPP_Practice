@@ -1,8 +1,14 @@
-//Sample Input
-//12
-//4.0
-//is the best place to learn and practice coding!
-
+/*
+Sample input:
+12
+4.0
+is the best place to learn and practice coding!
+-----------------------------------------------
+Sample output:
+16
+8.0
+HackerRank is the best place to learn and practice coding!
+*/
 #include <iostream>
 #include <iomanip>
 #include <limits>

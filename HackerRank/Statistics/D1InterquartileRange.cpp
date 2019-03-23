@@ -1,7 +1,7 @@
 //Sample Outputs 
-//6
-//6 12 8 10 20 16
-//5 4 3 2 1 5
+//6               = input count
+//6 12 8 10 20 16 = unique inputs  
+//5 4  3 2  1  5  = frequencies of inputs
 
 #include <cmath>
 #include <vector>

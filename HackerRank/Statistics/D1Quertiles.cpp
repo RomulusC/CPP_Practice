@@ -1,6 +1,6 @@
 //Sample Outputs 
-//9
-//3 7 8 5 12 14 21 13 18
+//9                      = number of inputs
+//3 7 8 5 12 14 21 13 18 = inputs
 
 #include <cmath>
 #include <vector>

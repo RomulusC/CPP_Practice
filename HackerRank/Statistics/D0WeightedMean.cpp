@@ -1,7 +1,7 @@
 //Sample Input
-//5
-//10 40 30 50 20
-//1 2 3 4 5
+//5              = total inputs
+//10 40 30 50 20 = values
+//1  2  3  4  5  = weight of values 
 
 #include <vector>
 #include <iostream>
@@ -40,9 +40,7 @@ float WeightedSum(std::vector<int>& x, std::vector<int>& w)
     {
         denominator+=w[i];
     }
-
-
-
+    
     return numerator/denominator;
 }
 
