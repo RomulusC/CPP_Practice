@@ -2,10 +2,10 @@
 The integral with limits 0->X from a standard deviation function gives the area of probability of an outcome.
 
 Normal Distribution function f(X) = e^(-x^2)
-Cant integrate this.
+Difficult to integrate.
 
 We use the Cumulative distribution function
-Which uses the "error function" <cmath> has this function as erf
+Which uses the "error function", <cmath> has this function as erf
 
 Mu = 20;
 sd = 2;
@@ -24,20 +24,19 @@ i5 = 22   = x2 : find area between x1,x2
 #include <cstdio>
 #include <vector>
 #include <iostream>
-#include <algorithm>
+
 using namespace std;
-
-
 int main() 
 {    
+    auto cdf = [&](const double x,const double Mu, const double sd){return 0.5 * (1 + erf((x - Mu) / (sd * sqrt(2))));};
+
     double mean{};
     double std{};
     std::vector<double> x(3);
-    std::cin>>mean>>std>>x[0]>>x[1]>>x[2];
-    
-    auto cdf = [&](double x){return 0.5 * (1 + erf((x - mean) / (std * sqrt(2))));};
-    
-    printf("%.3lf\n",cdf(x[0]));
-    printf("%.3lf\n",(abs(cdf(x[1])-cdf(x[2]))));   
+
+    scanf("%lf %lf %lf %lf %lf",&mean,&std,&x[0],&x[1],&x[2]);    
+
+    printf("%.3lf\n",cdf(x[0],mean,std));//Area between 0->19.5
+    printf("%.3lf\n",(cdf(x[2],mean,std)-cdf(x[1],mean,std)));//Area between 20->22    
     return 0;
 }

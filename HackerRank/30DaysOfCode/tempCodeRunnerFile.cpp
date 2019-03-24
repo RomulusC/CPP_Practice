@@ -1,3 +1,2 @@
-12
-4.0
-is the best place to learn and practice coding!
+
+    std::cout<<vec[0]<<" "<<vec[1];
