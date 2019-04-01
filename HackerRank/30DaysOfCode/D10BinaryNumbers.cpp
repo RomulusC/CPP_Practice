@@ -36,8 +36,9 @@ int main()
         {
             if(t_count>count) count = t_count;
             t_count=0;
-        }
+        }        
     }
+    if(t_count>count) count = t_count;
     std::cout<<count<<"\n";
 
     return 0;
