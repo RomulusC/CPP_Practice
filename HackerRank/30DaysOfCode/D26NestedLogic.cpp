@@ -9,14 +9,12 @@ int main()
 
     int fine;
 
-    if(rd<=dd&&rm<=dm&&ry<=dy||rm<dm&&ry<=dy)
+    if((rd<=dd&&rm==dm&&ry==dy) || (rm<dm&&ry<=dy)||(ry<dy))
     fine = 0;
     else if(rm==dm&&ry==dy)
-        fine = 15*(rd-dd);
-    
+        fine = 15*(rd-dd);    
     else if(ry==dy)
-        fine = 500*(rm-dm);
-    
+        fine = 500*(rm-dm);    
     else
         fine = 10000;
     printf("%d", fine);
