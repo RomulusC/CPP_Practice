@@ -10,6 +10,7 @@ File: ObserverPattern.h--------------------*
 #pragma once
 #include <vector>
 #include <iostream>
+#include <algorithm>
 class Subject;
 class Observer
 {
