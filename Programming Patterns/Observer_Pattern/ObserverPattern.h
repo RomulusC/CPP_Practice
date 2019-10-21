@@ -8,91 +8,201 @@ File: ObserverPattern.h--------------------*
 */
 
 #pragma once
-#include <vector>
 #include <iostream>
 #include <algorithm>
-class Sync_out
-{
-	std::mutex m_mutex;
-public:
-	void operator<<(std::string sss)
-	{
-		std::scoped_lock lck(m_mutex);
-		std::cout << sss;
-		
-	}
-};
-Sync_out sync_out;
+#include <map>
+#include <cassert>
+#include <mutex>
+
 class Subject;
+
 class Observer
 {
 private:
-protected:
-	std::vector<Subject*> m_SubscribedSubjects;
-	virtual void Destruction() = 0; //THIS IS REQUIRED TO UNSUBSCRIBE ON DELETION. CANNOT BE DONE IN LOCAL DESTRUCTOR BECAUSE CLASS SUBJECT MUST BE FULLY DEFINED
-public:
-	virtual void Update(Subject* s) = 0;
-	void SubscriptionComplete(Subject* _s)
-	{
-		m_SubscribedSubjects.emplace_back(_s);
-	}
-	virtual void SubjectDestroyed(Subject* _o) = 0;//THIS IS REQUIRED TO NOTIFY SUBJECT OBJECT DELETION. CANNOT BE DONE IN LOCAL DESTRUCTOR BECAUSE CLASS SUBJECT MUST BE FULLY DEFINED
-	~Observer()
-	{
-		std::stringstream ss;
-		ss << "OBSERVER DESTRUCTOR: Deleted!\n";
-		sync_out << ss.str();
 
+struct SubscriptionType
+{
+	Observer* m_previous;
+	Observer* m_next;
+};
+
+protected:
+	std::mutex m_mutex;
+	std::map<Subject*,SubscriptionType> m_ObserverMap;
+public:	
+	Observer()
+	{}
+		
+	Observer* GetNext(Subject* _s)
+	{
+		std::unique_lock<std::mutex> lck(m_mutex);
+
+		auto it = m_ObserverMap.find(_s);
+		if (it != m_ObserverMap.end())
+		{
+			return it->second.m_next;
+			lck.unlock();
+		}
+		
+		lck.unlock();
+		return nullptr;
+	}
+	Observer* GetPrevious(Subject* _s)
+	{
+		std::unique_lock<std::mutex> lck(m_mutex);
+
+		auto it = m_ObserverMap.find(_s);
+		if (it != m_ObserverMap.end())
+		{
+			lck.unlock();
+			return it->second.m_previous;
+		}
+		lck.unlock();
+		return nullptr;
+	}
+	bool SetNext(Subject* _s,Observer* _o)
+	{
+		std::unique_lock<std::mutex> lck(m_mutex);
+
+		auto it = m_ObserverMap.find(_s);
+		if(it!=m_ObserverMap.end())
+		{
+			it->second.m_next = _o;
+			lck.unlock();
+			return true;
+		}		
+		lck.unlock();
+		return false;
+	}
+	bool SetPrevious(Subject* _s,Observer* _o)
+	{
+		std::unique_lock<std::mutex> lck(m_mutex);
+
+		auto it = m_ObserverMap.find(_s);
+		if(it!=m_ObserverMap.end())
+		{
+			it->second.m_previous = _o;
+			lck.unlock();
+			return true;
+		}		
+		lck.unlock();
+		return false;
+	}
+	
+	virtual void Update(Subject* _s) = 0;
+	
+	~Observer()
+	{	
+		std::unique_lock<std::mutex> lck(m_mutex);
+
+		auto it = m_ObserverMap.begin();
+		
+		while(it!=m_ObserverMap.end())
+		{
+			Observer* current = this;
+			if(current->GetPrevious(it->first)!=nullptr && current->GetNext(it->first)!=nullptr)
+			{
+				current->GetPrevious(it->first)->SetNext(it->first,current->GetNext(it->first));
+				current->GetNext(it->first)->SetPrevious(it->first,current->GetPrevious(it->first));
+			}
+			else if(current->GetPrevious(it->first)!=nullptr)
+			{
+				current->GetPrevious(it->first)->SetNext(it->first, nullptr);
+			}
+			else if(current->GetNext(it->first)!=nullptr)
+			{
+				current->SetNext(it->first, nullptr);
+			}
+		//remove from final testing
+		this->SetNext(it->first,nullptr);
+		this->SetPrevious(it->first,nullptr);
+		//
+		it++;
+		}
+		lck.unlock();
+		std::cout << "OBSERVER DESTRUCTOR: Deleted!\n";
 	}
 };
 class Subject
 {
 private:
-	std::mutex mm_mutex;
 
 protected:
-	std::vector<Observer*> m_observerList;
+	Observer* m_ObserverLinkedList;
 	void UpdateObservers()
 	{
-		std::scoped_lock<std::mutex> lck(mm_mutex);
-		auto it = m_observerList.begin();
-		while (it != m_observerList.end())
+		auto observer = m_ObserverLinkedList;
+		while(observer!=nullptr)
 		{
-			(*it)->Update(this);
-			it++;
+			observer->Update(this);
+			observer = observer->GetNext(this);
 		}
-		std::stringstream ss;
-		ss << "---------------------------------------------\n";
-		sync_out << ss.str();
+		std::cout << "---------------------------------------------\n";
 	}
 public:
+	Subject()
+	:m_ObserverLinkedList(nullptr)	{}
+
 	void SubscribeObserver(Observer* _o)
 	{
-		std::scoped_lock<std::mutex> lck(mm_mutex);
-
-		if (std::find(m_observerList.begin(), m_observerList.end(), _o) == m_observerList.end())
+		if(m_ObserverLinkedList==nullptr) //start check
 		{
-			m_observerList.emplace_back(_o);
-			_o->SubscriptionComplete(this);
+			m_ObserverLinkedList = _o;
+			return;
 		}
+
+		auto observer = m_ObserverLinkedList;	
+
+		while(observer->GetNext(this)!=nullptr)
+			observer = observer->GetNext(this);
+
+		observer->SetNext(this, _o);	
+		observer->GetNext(this)->SetPrevious(this,observer);
 	}
 	void UnsubscribeObserver(Observer* _o)
 	{
-		std::scoped_lock<std::mutex> lck(mm_mutex);
+		if(m_ObserverLinkedList==nullptr) //start check
+			return;
+		
+		auto observer = m_ObserverLinkedList;
+		while(observer!= _o||observer->GetNext(this)!=nullptr)//search for observer node
+			observer = observer->GetNext(this);
 
-		auto it = std::find(m_observerList.begin(), m_observerList.end(), _o);
-		if (it != m_observerList.end())
+		if(observer!=_o)//check if node is found
+			return;		
+
+		if(observer->GetPrevious(this)!=nullptr&& observer->GetNext(this)!=nullptr)
 		{
-			m_observerList.erase(it);
+			observer->GetPrevious(this)->SetNext(this, observer->GetNext(this));
+			observer->GetNext(this)->SetPrevious(this, observer->GetPrevious(this));
 		}
+		else if(observer->GetPrevious(this)!=nullptr) //if end node
+		{
+			observer->GetPrevious(this)->SetNext(this,nullptr);
+		}
+		else if(observer->GetNext(this)!=nullptr) //if start node
+		{
+			m_ObserverLinkedList = nullptr;
+		}
+		
+
+		observer->SetNext(this, nullptr);
+		observer->SetPrevious(this,nullptr);
+		
+		
 	}
 	~Subject()
 	{
-		std::scoped_lock<std::mutex> lck(mm_mutex);
-		std::stringstream ss;
-		for (auto it : m_observerList)
-			it->SubjectDestroyed(this);
-		ss << "SUBJECT DESTRUCTOR: Deleted!\n";
-		sync_out << ss.str();
+		//assert(m_ObserverLinkedList->GetPrevious(this)!=nullptr);//before
+		while(m_ObserverLinkedList->GetNext(this)!=nullptr)
+		{
+			m_ObserverLinkedList = m_ObserverLinkedList->GetNext(this);
+			m_ObserverLinkedList->GetPrevious(this)->SetNext(this, nullptr);
+			m_ObserverLinkedList->SetPrevious(this,nullptr);
+		}
+		m_ObserverLinkedList->SetPrevious(this,nullptr);
+		//assert(m_ObserverLinkedList->GetNext(this)!=nullptr);//after
+
+		std::cout << "SUBJECT DESTRUCTOR: Deleted!\n";
 	}
 };
