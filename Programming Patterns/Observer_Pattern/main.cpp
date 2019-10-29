@@ -14,7 +14,7 @@ File: main.cpp-----------------------------*
 #include <shared_mutex>
 
 #include "ObserverPattern.h"
-#include "SynchronousLog.cpp"
+#include "SynchronousLog.h"
 
 class AtomicTime : public Subject
 {
@@ -49,6 +49,7 @@ private:
 					start = std::chrono::system_clock::now();
 					lck.unlock();
 					UpdateObservers();
+					C_TRACE("---------------------------------------------\n");
 				}
 			}
 			std::this_thread::sleep_for(15ms);
@@ -67,7 +68,7 @@ public:
 		struct tm startInfo;
 		localtime_s(&startInfo, &in_time_t);
 		std::stringstream ss;
-		ss << startInfo.tm_hour << ":" << startInfo.tm_min << ":" << startInfo.tm_sec << " ----------------------- Delay:" << std::to_string(m_msDelay) << "ms";
+		ss << startInfo.tm_hour << ":" << startInfo.tm_min << ":" << startInfo.tm_sec << " Delay:" << std::to_string(m_msDelay) << "ms";
 		return ss.str();
 	}
 	~AtomicTime()
@@ -104,7 +105,7 @@ public:
 	{
 		std::unique_lock<std::shared_mutex> lk(m_mutex);
 		AtomicTime* target = static_cast<AtomicTime*>(s);
-		std::cout << "Observer ID: " << thisId << " ----------- Time: " << target->ObserGetTimeString() << " -------------------------\n";
+		T_TRACE("Observer ID: " , thisId , " Time: " , target->ObserGetTimeString(),"\n");
 	}
 	unsigned int GetID()
 	{
@@ -113,36 +114,35 @@ public:
 	void PrintNeighbours()
 	{
 		std::unique_lock<std::shared_mutex> lk(m_mutex);
-
-		std::cout << "LocalClock ID: " << this->GetID() << "\n";
+		T_TRACE("LocalClock ID: " , this->GetID() , "\n");
 		
 		auto it = m_ObserverMap.begin();
 		if (it == m_ObserverMap.end())
 		{
-			std::cout << "NO SUBSCRIPTIONS!\n";
+			T_TRACE("NO SUBSCRIPTIONS!\n");
 		}
 		for (auto it : m_ObserverMap)
 		{
-			std::cout << "Subject object: " << it.first << "\n";
-			std::cout << "Previous ID: " << it.second.m_previous<<" ";
-			std::cout << "Next ID: " << it.second.m_next<<"\n";
+			T_TRACE("Subject object: " , it.first , "\n",
+					"Previous ID: " , it.second.m_previous , "\n ",
+					"Next ID: " , it.second.m_next , "\n");
 		}
 	}
 };
 void PrintSubscribedObservers(AtomicTime* _s) //concrete type specific
 {
-	std::cout << "Printing out subscriptions.\n";
+	T_TRACE("Printing out subscriptions. ----------------------\n");
 
 	Observer* current = _s->GetObserverLinkedList();
 	if (current == nullptr)
 	{
-		std::cout << "No Subscriptions\n";
+		T_TRACE("No Subscriptions\n");
 		return;
 	}
 	while (current != nullptr)
 
 	{
-		std::cout << "OBSERVER ID: " << static_cast<LocalClock*>(current)->GetID()<<"\n";
+		T_TRACE("OBSERVER ID: " , static_cast<LocalClock*>(current)->GetID() , "\n");
 		current = current->GetNext(_s);
 	}
 
@@ -183,23 +183,23 @@ int main()
 	subject->UnsubscribeObserver(observer5); //test: Refuse to unsubscribed an already unsubscribed observer
 	PrintSubscribedObservers(subject);
 	
-
 	using namespace std::chrono_literals;
 	auto thread = subject->Start();
 	std::this_thread::sleep_for(3s);
+
 	subject->UnsubscribeObserver(observer1);
-	std::cout << "UNSUBSCRIBED: " << observer1->GetID() << " =====================================\n";
+	T_TRACE("UNSUBSCRIBED: ", observer1->GetID(),"\n");
 
-	std::cout << "DELETING: " << observer3->GetID() << " =====================================\n";
 	delete observer3;
-	std::cout << "PRESS TO DELETE SUBJECT! " << " =====================================\n";
+	T_TRACE("DELETED: ", observer3->GetID(), "\n");
 
-	std::cout << "DELETING: " << observer4->GetID() << " =====================================\n";
 	delete observer4;
+	T_TRACE("DELETED: ", observer4->GetID(), "\n");
+
 	PrintSubscribedObservers(subject);
 
+	T_TRACE("PRESS TO DELETE SUBJECT! \n");
 
-	std::cout << "PRESS TO DELETE SUBJECT! " << " =====================================\n";
 	std::cin.get();
 	subject->SubscribeObserver(observer5);
 	//Check
@@ -210,9 +210,7 @@ int main()
 	observer5->PrintNeighbours();//no subscribed
 	//subject->DeInit(); //check if initiating DeInit() or delete in either order causes crash
 	delete subject;
-	std::cout << "DONE! " << " =====================================\n";
-
-
+	T_TRACE("SUBJECT DELETED! \n");
 	//Check
 	observer1->PrintNeighbours();
 	observer2->PrintNeighbours();

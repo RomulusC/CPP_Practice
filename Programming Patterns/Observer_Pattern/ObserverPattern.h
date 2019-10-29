@@ -8,11 +8,11 @@ File: ObserverPattern.h--------------------*
 */
 
 #pragma once
-#include <iostream>
 #include <algorithm>
 #include <map>
 #include <cassert>
 #include <mutex>
+#include "SynchronousLog.h"
 
 class Subject;
 
@@ -134,7 +134,6 @@ protected:
 			observer->Update(this);
 			observer = observer->GetNext(this);
 		}
-		std::cout << "---------------------------------------------\n";
 	}
 public:
 	Subject()
@@ -161,7 +160,8 @@ public:
 			observer = observer->GetNext(this);
 		if (observer->GetNext(this) == _o)
 		{
-			std::cout << "LOG: Tried to subscribe an already subscribed observer.-----------------------------------\n";
+			T_TRACE("Tried to subscribe an already subscribed observer.\n");
+
 			return;
 		}
 
@@ -193,7 +193,7 @@ public:
 
 		if (observer->GetNext(this) != _o)//check if node is NOT found
 		{
-			std::cout << "Observer not subscribed\n";
+			T_TRACE("Observer not subscribed\n");
 			return;
 		}
 
