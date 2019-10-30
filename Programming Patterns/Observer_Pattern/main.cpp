@@ -123,9 +123,9 @@ public:
 		}
 		for (auto it : m_ObserverMap)
 		{
-			T_TRACE("Subject object: " , it.first , "\n",
-					"Previous ID: " , it.second.m_previous , "\n ",
-					"Next ID: " , it.second.m_next , "\n");
+			C_TRACE("Subject object: " , it.first , "\n",
+					"	Previous ID: " , it.second.m_previous , "\n ",
+					"	Next ID: " , it.second.m_next , "\n");
 		}
 	}
 };
@@ -148,15 +148,15 @@ void PrintSubscribedObservers(AtomicTime* _s) //concrete type specific
 
 }
 
-
 unsigned int LocalClock::count = 0;
 int main()
 {
-	std::cout << "The Observer Pattern.\n" <<
-		"The AtomicTime object (the subject) runs on it's own thread keeping time duration,\n"<<
-		"updates any objects (observers) that have subscribed to the subject over a period of time.\n" <<
-		"Three observers will be subscribed to one subject in this demonstration." << 
-		"\nPress any key to start.\n";
+	C_TRACE("The Observer Pattern.\n",
+		"The AtomicTime object (the subject) runs on it's own thread keeping time duration,\n",
+		"updates any objects (observers) that have subscribed to the subject over a period of time.\n",
+		"Three observers will be subscribed to one subject in this demonstration.",
+		"\nPress any key to start.\n\n");
+	std::cin.get();
 
 	AtomicTime* subject = new AtomicTime(200);
 	LocalClock* observer1 = new LocalClock();
@@ -203,25 +203,20 @@ int main()
 	std::cin.get();
 	subject->SubscribeObserver(observer5);
 	//Check
-	observer1->PrintNeighbours();//no neighbors
+	observer1->PrintNeighbours();//unsubscribed, no neighbors
 	observer2->PrintNeighbours();//subscribed
-	//observer3->PrintNeighbours();
-	//observer4->PrintNeighbours();
-	observer5->PrintNeighbours();//no subscribed
+	//observer3->PrintNeighbours();//deleted
+	//observer4->PrintNeighbours();//deleted
+	observer5->PrintNeighbours();//resubscribed
 	//subject->DeInit(); //check if initiating DeInit() or delete in either order causes crash
 	delete subject;
 	T_TRACE("SUBJECT DELETED! \n");
 	//Check
 	observer1->PrintNeighbours();
 	observer2->PrintNeighbours();
-	//observer3->PrintNeighbours();
-	//observer4->PrintNeighbours();
+	//observer3->PrintNeighbours();//deleted
+	//observer4->PrintNeighbours();//deleted
 	observer5->PrintNeighbours();
-	std::cin.get();
 	thread.join();
-	
-
-
-	
-	
+	std::cin.get();	
 }

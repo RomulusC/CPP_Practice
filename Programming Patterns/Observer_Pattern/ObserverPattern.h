@@ -6,6 +6,10 @@ Project: Observer Pattern------------------*
 File: ObserverPattern.h--------------------*
 ********************************************
 */
+//The subject and observer classes are virtual classes that sets up functionality for Observer/Subject pattern.
+//The Subject contains a reference to the start of a doubly linked list, where the observers are themselves are nodes in the linked list. Updates occur by traversing through the linked list.
+//To allow for Observers to be subscribed to multiple subjects, the observers hold a map where the key is a reference of the subject, and the contents of that key is the doubly linked list variables.
+//Observers that unsubscribes itself from a subject is constant time, the node connects its neighbors through accessing and altering the references. 
 
 #pragma once
 #include <algorithm>

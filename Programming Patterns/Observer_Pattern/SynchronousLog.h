@@ -1,6 +1,15 @@
+/*
+********************************************
+Rommulluss Caraiman------------------------*
+19/10/2019---------------------------------*
+Project: SynchronousLog.h------------------*
+File: main.cpp-----------------------------*
+********************************************
+*/
+//The SyncOut class is a singleton that synchronizes the std::cout function, with the choice to add a log like time printing with T_TRACE and regular cout with C_TRACE
+
 #pragma once
 #include <iostream>
-#include <cstdarg>
 #include <mutex>
 #include <chrono>
 namespace customLog
@@ -9,10 +18,19 @@ namespace customLog
 	{
 	private:
 		std::mutex m_mutex;
-
-	public:
 		SyncOut() {}
+	public:
+//Singleton functions:
+		SyncOut(SyncOut const&) = delete;
+		void operator=(SyncOut const&) = delete;
+		~SyncOut() {}
 
+		static SyncOut& instance()
+		{
+			static SyncOut* s_Instance = new SyncOut();
+			return *s_Instance;
+		}
+//Trace Functions:
 		template<typename ...args>
 		void t_trace(args... next)
 		{			
@@ -43,11 +61,8 @@ namespace customLog
 		{
 			std::cout << current;
 		}
-	};
-	SyncOut sync_out;
-	
+	};	
 }
 //Log Macros
-#define C_TRACE(...) customLog::sync_out.trace(__VA_ARGS__) 
-#define T_TRACE(...) customLog::sync_out.t_trace(__VA_ARGS__) 
-
+#define C_TRACE(...) customLog::SyncOut::instance().trace(__VA_ARGS__);
+#define T_TRACE(...) customLog::SyncOut::instance().t_trace(__VA_ARGS__);
