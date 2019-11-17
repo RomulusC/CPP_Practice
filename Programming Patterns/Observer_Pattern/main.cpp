@@ -14,7 +14,7 @@ File: main.cpp-----------------------------*
 #include <shared_mutex>
 
 #include "ObserverPattern.h"
-#include "SynchronousLog.h"
+
 
 class AtomicTime : public Subject
 {
@@ -105,7 +105,7 @@ public:
 	{
 		std::unique_lock<std::shared_mutex> lk(m_mutex);
 		AtomicTime* target = static_cast<AtomicTime*>(s);
-		T_TRACE("Observer ID: " , thisId , " Time: " , target->ObserGetTimeString(),"\n");
+		T_TRACE("Observer ID: %d Time: %s\n" , thisId, target->ObserGetTimeString());
 	}
 	unsigned int GetID()
 	{
@@ -114,7 +114,7 @@ public:
 	void PrintNeighbours()
 	{
 		std::unique_lock<std::shared_mutex> lk(m_mutex);
-		T_TRACE("LocalClock ID: " , this->GetID() , "\n");
+		T_TRACE("LocalClock ID: %u " , this->GetID());
 		
 		auto it = m_ObserverMap.begin();
 		if (it == m_ObserverMap.end())
@@ -123,9 +123,7 @@ public:
 		}
 		for (auto it : m_ObserverMap)
 		{
-			C_TRACE("Subject object: " , it.first , "\n",
-					"	Previous ID: " , it.second.m_previous , "\n ",
-					"	Next ID: " , it.second.m_next , "\n");
+			C_TRACE("Subject object: %s\n Previous ID: %u\nNext ID: %u\n" , it.first , it.second.m_previous, it.second.m_next );
 		}
 	}
 };
@@ -142,20 +140,26 @@ void PrintSubscribedObservers(AtomicTime* _s) //concrete type specific
 	while (current != nullptr)
 
 	{
-		T_TRACE("OBSERVER ID: " , static_cast<LocalClock*>(current)->GetID() , "\n");
+		T_TRACE("OBSERVER ID: %d \n" , static_cast<LocalClock*>(current)->GetID());
 		current = current->GetNext(_s);
 	}
 
 }
 
 unsigned int LocalClock::count = 0;
+	
+	
 int main()
 {
-	C_TRACE("The Observer Pattern.\n",
-		"The AtomicTime object (the subject) runs on it's own thread keeping time duration,\n",
-		"updates any objects (observers) that have subscribed to the subject over a period of time.\n",
-		"Three observers will be subscribed to one subject in this demonstration.",
-		"\nPress any key to start.\n\n");
+	using namespace std::chrono_literals;
+	std::thread thread_logging = customLog::startAutoThread(15ms);
+	
+
+	C_TRACE("The Observer Pattern.\n");
+	C_TRACE("The AtomicTime object (the subject) runs on it's own thread keeping time duration,\n");
+	C_TRACE("updates any objects (observers) that have subscribed to the subject over a period of time.\n");
+	C_TRACE("Three observers will be subscribed to one subject in this demonstration.\n");
+	C_TRACE("Press any key to start.\n\n");
 	std::cin.get();
 
 	AtomicTime* subject = new AtomicTime(200);
@@ -183,18 +187,17 @@ int main()
 	subject->UnsubscribeObserver(observer5); //test: Refuse to unsubscribed an already unsubscribed observer
 	PrintSubscribedObservers(subject);
 	
-	using namespace std::chrono_literals;
 	auto thread = subject->Start();
 	std::this_thread::sleep_for(3s);
 
 	subject->UnsubscribeObserver(observer1);
-	T_TRACE("UNSUBSCRIBED: ", observer1->GetID(),"\n");
+	T_TRACE("UNSUBSCRIBED: %u\n", observer1->GetID());
 
 	delete observer3;
-	T_TRACE("DELETED: ", observer3->GetID(), "\n");
+	T_TRACE("DELETED: %u\n", observer3->GetID());
 
 	delete observer4;
-	T_TRACE("DELETED: ", observer4->GetID(), "\n");
+	T_TRACE("DELETED: %u\n", observer4->GetID());
 
 	PrintSubscribedObservers(subject);
 
@@ -217,6 +220,31 @@ int main()
 	//observer3->PrintNeighbours();//deleted
 	//observer4->PrintNeighbours();//deleted
 	observer5->PrintNeighbours();
+	for(int i =0;i<10;i++) //Use this to check for buffer overflow
+	T_TRACE("TEST_SPAM! \n");
+
 	thread.join();
+	customLog::stopAutoThread();
+	thread_logging.join();
 	std::cin.get();	
 }
+
+/*
+#include "SynchronousLog.h"
+
+int main()
+{
+	int* x = new int {200};
+	int y  =100;
+	int z  =200;
+	char c = 'P';
+	char* s = "aAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHH!";
+	//C_TRACE("ello world %d\n %d %d %c %s\n",y,z,*x,c,s,"allhellowthere");
+	C_TRACE("H","E");
+	printf("awdasdawdasd","awdasdawdasdaw");
+	customLog::printBufferReset();
+	std::cin.get();
+
+	return 0;
+}
+*/
