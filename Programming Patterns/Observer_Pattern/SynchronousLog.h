@@ -180,7 +180,7 @@ namespace customLog
 		//char only
 		void addToBuffer(const char& c_)
 		{
-			assert(m_count + 1 <= MAX_BUFFER_SIZE); //Exceeded buffer size. TODO: Add the capability of overflow
+			//assert(m_count + 1 <= MAX_BUFFER_SIZE); //Exceeded buffer size. TODO: Add the capability of overflow
 			if (m_count + 1 > MAX_BUFFER_SIZE)
 				printBufferReset(true);
 			*(m_buffer+m_count) = c_;
