@@ -20,9 +20,8 @@ namespace customLog
 {
 	class SyncOut
 	{
-		//TODO: Refactor such that a parallel threads requests to print, and only 1 thread actually does the printing. Probably wont even need mutexes.
 		//TODO: try to support new pools when buffer is overflown
-		#define MAX_BUFFER_SIZE 4156
+		#define MAX_BUFFER_SIZE 1028 //Currently, if an input stream is > MAX_BUFFER_SIZE, assert occours. If an input stream is smaller than MAX_BUFFER_SIZE, the buffer prints and flushes, then adds stream. 
 	
 	public:
 //Singleton functions:
@@ -41,7 +40,8 @@ namespace customLog
 		//bool t_trace if you want timing included in line
 		void trace(bool t_trace,const char* str_...)
 		{					
-			std::scoped_lock<std::mutex> lck(m_mutex);
+			std::lock_guard<std::mutex> lck(m_mutex);
+			
 			if(str_==nullptr || str_[0]=='\0')
 				return;
 			va_list args;
@@ -107,15 +107,19 @@ namespace customLog
 			}
 			addToBuffer('\0');
 		}
-		void printBufferReset()
+		//bool mutex_ indicates if mutex is already locked.
+		//mutex_ = true when the previous function already is locked. 
+		void printBufferReset(bool mutex_ = false)
 		{
-			printBuffer();
-			std::scoped_lock<std::mutex> lck(m_mutex);
+			if(!mutex_)
+				std::scoped_lock<std::mutex> lck(m_mutex);
+			printBuffer(true);
 			m_count = 0;			
 		}
-		void printBuffer()
+		void printBuffer(bool mutex_ = false)
 		{
-			std::scoped_lock<std::mutex> lck(m_mutex);//APPARENTLY ONLY CHILD THREADS CORRECTLY WORK WITH MUTEX HANDLING........................UHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH!!!
+			if(!mutex_)
+				std::scoped_lock<std::mutex> lck(m_mutex);
 			if(m_count==0)
 				return;
 				
@@ -134,7 +138,7 @@ namespace customLog
 			}
 		}
 		//Function to allow to easily set up its own thread for testing
-		//The printbuffer() would probably be added in a main frame thread
+		//The printbuffer() would probably be added in a main frame thread (very expensive for a single class to run its own thread)
 		std::thread autoThread(std::chrono::milliseconds ms_)
 		{
 			return std::thread(&SyncOut::Tick,this);
@@ -167,8 +171,9 @@ namespace customLog
 		{
 			char temp[64];
 			int offset = sprintf_s(temp,64, format_, t_);
-			assert(m_count+offset<=MAX_BUFFER_SIZE); //Exceeded buffer size. TODO: Add the capability of overflow
-			
+			//assert(m_count+offset<=MAX_BUFFER_SIZE); //Exceeded buffer size. TODO: Add the capability of overflow
+			if(m_count + offset > MAX_BUFFER_SIZE)
+				printBufferReset(true);
 			for(int i =0; i<offset;i++)
 				addToBuffer(*(temp+i));				
 		}
@@ -176,10 +181,12 @@ namespace customLog
 		void addToBuffer(const char& c_)
 		{
 			assert(m_count + 1 <= MAX_BUFFER_SIZE); //Exceeded buffer size. TODO: Add the capability of overflow
+			if (m_count + 1 > MAX_BUFFER_SIZE)
+				printBufferReset(true);
 			*(m_buffer+m_count) = c_;
 				m_count++;
 		}
-
+		
 		std::mutex m_mutex; //locking for synchronized reading and writing
 		//m_count will always be on the \0 of the last string
 		char* m_buffer; // TODO: maybe have a vector of these, to allow  for overflow. 
