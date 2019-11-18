@@ -20,8 +20,9 @@ namespace customLog
 {
 	class SyncOut
 	{
-		#define MAX_BUFFER_SIZE 1024
+		//TODO: Refactor such that a parallel threads requests to print, and only 1 thread actually does the printing. Probably wont even need mutexes.
 		//TODO: try to support new pools when buffer is overflown
+		#define MAX_BUFFER_SIZE 4156
 	
 	public:
 //Singleton functions:
@@ -39,13 +40,12 @@ namespace customLog
 
 		//bool t_trace if you want timing included in line
 		void trace(bool t_trace,const char* str_...)
-		{			
-			
+		{					
+			std::scoped_lock<std::mutex> lck(m_mutex);
 			if(str_==nullptr || str_[0]=='\0')
 				return;
 			va_list args;
 			va_start(args,str_);
-			std::unique_lock<std::mutex> lck(m_mutex);
 			//Very crude way of doing this but it will do.
 			if(t_trace)
 			{
@@ -58,9 +58,11 @@ namespace customLog
 				if(startInfo.tm_hour<10)
 				{
 					temp[0]='0';			
-					i++;		
+					i++;
+					sprintf_s(temp + i, 2, "%d", startInfo.tm_hour);
 				}				
-				sprintf(temp+i,"%d",startInfo.tm_hour);
+				else
+					sprintf_s(temp+i,3,"%d",startInfo.tm_hour);
 				x[1] = temp[0];
 				x[2] = temp[1];
 				i=0;
@@ -68,8 +70,11 @@ namespace customLog
 				{
 					temp[0]='0';			
 					i++;		
+					sprintf_s(temp+i,2,"%d",startInfo.tm_min);
 				}
-				sprintf(temp+i,"%d",startInfo.tm_min);
+				else
+					sprintf_s(temp + i, 3, "%d", startInfo.tm_min);
+
 				x[4] = temp[0];
 				x[5] = temp[1];
 				i=0;
@@ -77,12 +82,13 @@ namespace customLog
 				{
 					temp[0]='0';			
 					i++;		
+					sprintf_s(temp+i,2,"%d",startInfo.tm_sec);
 				}
-				sprintf(temp+i,"%d",startInfo.tm_sec);
+				else
+					sprintf_s(temp + i, 3, "%d", startInfo.tm_sec);
 
 				x[7] = temp[0];
 				x[8] = temp[1];
-
 
 				addToBuffer(x,"%s");
 			}
@@ -97,7 +103,6 @@ namespace customLog
 				}
 				else
 					addToBuffer(*(str_+i));
-
 				i++;				
 			}
 			addToBuffer('\0');
@@ -105,14 +110,14 @@ namespace customLog
 		void printBufferReset()
 		{
 			printBuffer();
+			std::scoped_lock<std::mutex> lck(m_mutex);
 			m_count = 0;			
 		}
 		void printBuffer()
 		{
+			std::scoped_lock<std::mutex> lck(m_mutex);//APPARENTLY ONLY CHILD THREADS CORRECTLY WORK WITH MUTEX HANDLING........................UHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH!!!
 			if(m_count==0)
 				return;
-
-			std::unique_lock<std::mutex> lck(m_mutex);
 				
 			unsigned short i = 0;
 			unsigned short prevStart = 0;
@@ -161,27 +166,25 @@ namespace customLog
 		void addToBuffer(const char* t_,const char* format_)
 		{
 			char temp[64];
-			int offset = std::sprintf(temp, format_, t_);
-			assert(m_count+offset<=MAX_BUFFER_SIZE);
+			int offset = sprintf_s(temp,64, format_, t_);
+			assert(m_count+offset<=MAX_BUFFER_SIZE); //Exceeded buffer size. TODO: Add the capability of overflow
 			
-			for(unsigned int i =0; i<offset;i++)
+			for(int i =0; i<offset;i++)
 				addToBuffer(*(temp+i));				
 		}
 		//char only
 		void addToBuffer(const char& c_)
 		{
-			if(m_count+1>MAX_BUFFER_SIZE)
-				printBufferReset();
-
+			assert(m_count + 1 <= MAX_BUFFER_SIZE); //Exceeded buffer size. TODO: Add the capability of overflow
 			*(m_buffer+m_count) = c_;
 				m_count++;
 		}
 
-		std::mutex m_mutex; //locking for synchronised reading and writing
+		std::mutex m_mutex; //locking for synchronized reading and writing
 		//m_count will always be on the \0 of the last string
 		char* m_buffer; // TODO: maybe have a vector of these, to allow  for overflow. 
 		unsigned short int m_count;	//current position of last alive string's '\0'
-		bool m_isThreadStart; //deligates when thread stops
+		bool m_isThreadStart; //delegates when thread stops
 	};	
 }
 
@@ -192,4 +195,4 @@ namespace customLog
 #define stopAutoThread SyncOut::instance().stopThread
 
 #define C_TRACE(...) customLog::SyncOut::instance().trace(false,__VA_ARGS__);
-#define T_TRACE(...) customLog::SyncOut::instance().trace(true,__VA_ARGS__);
+#define T_TRACE(...) customLog::SyncOut::instance().trace(true, __VA_ARGS__);

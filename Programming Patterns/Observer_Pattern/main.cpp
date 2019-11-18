@@ -13,9 +13,10 @@ File: main.cpp-----------------------------*
 #include <sstream> 
 #include <shared_mutex>
 
+#define OBSERVER_PATTERN 1
+#if OBSERVER_PATTERN
+
 #include "ObserverPattern.h"
-
-
 class AtomicTime : public Subject
 {
 private:
@@ -105,7 +106,7 @@ public:
 	{
 		std::unique_lock<std::shared_mutex> lk(m_mutex);
 		AtomicTime* target = static_cast<AtomicTime*>(s);
-		T_TRACE("Observer ID: %d Time: %s\n" , thisId, target->ObserGetTimeString());
+		T_TRACE("Observer ID: %d Time: %s\n" , thisId, target->ObserGetTimeString().c_str());
 	}
 	unsigned int GetID()
 	{
@@ -123,7 +124,7 @@ public:
 		}
 		for (auto it : m_ObserverMap)
 		{
-			C_TRACE("Subject object: %s\n Previous ID: %u\nNext ID: %u\n" , it.first , it.second.m_previous, it.second.m_next );
+			C_TRACE("Subject object: %u\n Previous ID: %u\nNext ID: %u\n" , it.first , it.second.m_previous, it.second.m_next );
 		}
 	}
 };
@@ -220,7 +221,7 @@ int main()
 	//observer3->PrintNeighbours();//deleted
 	//observer4->PrintNeighbours();//deleted
 	observer5->PrintNeighbours();
-	for(int i =0;i<10;i++) //Use this to check for buffer overflow
+	for(int i =0;i<50;i++) //Use this to check for buffer overflow
 	T_TRACE("TEST_SPAM! \n");
 
 	thread.join();
@@ -228,8 +229,8 @@ int main()
 	thread_logging.join();
 	std::cin.get();	
 }
+#else
 
-/*
 #include "SynchronousLog.h"
 
 int main()
@@ -238,13 +239,11 @@ int main()
 	int y  =100;
 	int z  =200;
 	char c = 'P';
-	char* s = "aAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHH!";
-	//C_TRACE("ello world %d\n %d %d %c %s\n",y,z,*x,c,s,"allhellowthere");
-	C_TRACE("H","E");
-	printf("awdasdawdasd","awdasdawdasdaw");
+	const char* s = "CONST CHAR CHECK!!!";
+	C_TRACE("Hello world %d\n %d %d %c %s %s\n",y,z,*x,c,s,"(string literal addition)"); 
 	customLog::printBufferReset();
 	std::cin.get();
 
 	return 0;
 }
-*/
+#endif

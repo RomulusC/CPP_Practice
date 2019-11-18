@@ -15,8 +15,10 @@ File: ObserverPattern.h--------------------*
 #include <algorithm>
 #include <map>
 #include <cassert>
-#include <mutex>
+#include <shared_mutex>
 #include "SynchronousLog.h"
+
+//TODO: check how many threads access this objects, if only one, no need for mutexes. Mutexes only work with child threads... (didnt know this...)
 
 class Subject;
 
@@ -121,7 +123,6 @@ public:
 				it->second.m_next->SetPrevious(it->first, nullptr);
 			it++;
 		}
-
 	}
 };
 class Subject
