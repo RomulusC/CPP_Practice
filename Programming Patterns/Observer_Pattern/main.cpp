@@ -153,7 +153,7 @@ unsigned int LocalClock::count = 0;
 int main()
 {
 	using namespace std::chrono_literals;
-	std::thread thread_logging = customLog::startAutoThread(15ms);
+	std::thread thread_logging = autoThreadStart_(15ms);
 	
 
 	C_TRACE("The Observer Pattern.\n");
@@ -225,7 +225,7 @@ int main()
 	T_TRACE("TEST_SPAM! \n");
 
 	thread.join();
-	customLog::stopAutoThread();
+	autoThreadStop_();
 	thread_logging.join();
 	std::cin.get();	
 }
@@ -235,13 +235,8 @@ int main()
 
 int main()
 {
-	int* x = new int {200};
-	int y  =100;
-	int z  =200;
-	char c = 'P';
-	const char* s = "CONST CHAR CHECK!!!";
-	C_TRACE("Hello world %d\n %d %d %c %s %s\n",y,z,*x,c,s,"(string literal addition)"); 
-	customLog::printBufferReset();
+	C_TRACE("-------------------------%d-------%d---%d---%d-------\n",22,23,24,25);
+	printBufferReset_();
 	std::cin.get();
 
 	return 0;

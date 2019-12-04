@@ -15,74 +15,189 @@ File: main.cpp-----------------------------*
 #include <cstdarg>
 #include <cassert>
 #include <chrono>
+#include <vector>
 
 namespace customLog
 {
+#define MAX_BUFFER_SIZE 512 //Currently, if an input stream is > MAX_BUFFER_SIZE, assert occours. If an input stream is smaller than MAX_BUFFER_SIZE, the buffer prints and flushes, then adds stream. 
+	using uint = unsigned int;
+
+	class StringBuffer
+	{
+	private:
+
+		//going to replace null terminators with \n.
+	public:
+		StringBuffer(uint bufferSize)
+			: m_capacity(bufferSize)
+			, m_iterator((uint)0)
+			, m_buffer((char*)malloc(sizeof(char)* m_capacity))
+		{
+			m_buffer[0] = '\0';
+		}
+		static uint strlength(const char* str_)
+		{
+			uint i = 0;
+			while (str_[i] != '\0')
+			{
+				i++;
+				//maybe do an assert here
+			}
+			return i;
+		}
+		void push_back(const char c_)
+		{
+			assert(m_iterator + 1 <= m_capacity); //check for illegal memory access
+			m_buffer[m_iterator++] = c_;
+		}
+		// str_ must always include a '\0'
+		void append(const char* str_)
+		{
+			assert(m_buffer[m_iterator] != '0');// must always be at end to append
+			if (m_iterator != 0)
+				m_iterator--;
+			uint sizeStr = strlength(str_) + 1;
+			assert(this->m_iterator + sizeStr < m_capacity);
+
+			// sanity checks
+			//assert(m_buffer[m_iterator] != '\0'); // must make sure: end of m_buffer must ALWAYS be '\0'
+			//assert((m_iterator + sizeStr) > capacity()); // must make sure: end of m_buffer must ALWAYS be '\0'				
+
+			for (uint i = 0; i < sizeStr; i++)
+			{
+				this->push_back(str_[i]);
+			}
+		}
+		void append(const char* str_, const uint& length)
+		{
+			assert(m_buffer[m_iterator] != '0');// must always be at end to append
+			assert(this->m_iterator + 1 < m_capacity);
+
+			if (m_iterator != 0)
+				m_iterator--;
+
+			for (uint i = 0; i < length; i++)
+			{
+				this->push_back(str_[i]);
+			}
+			this->push_back('\0');
+
+		}
+		char& operator[](uint i_)
+		{
+			return m_buffer[i_];
+		}
+		/* come back to this
+		void operator[](uint i_, char& c_)
+		{
+			m_buffer[i] = c_;
+		}
+		*/
+		void clear()
+		{
+			m_buffer[0] = '\0';
+			m_iterator = 0;
+		}
+
+		uint size()
+		{
+			return m_iterator;
+		}
+		uint capacity()
+		{
+			return m_capacity; // it's going to be MAX_BUFFER_SIZE
+		}
+		const char* c_str()
+		{
+			return m_buffer;
+			// print until reached m_iterator, as there can be multiple strings.
+		}
+		void it_remOne()
+		{
+			if (m_iterator != 0)
+				m_iterator--;
+		}
+	private:
+		const uint m_capacity;
+		uint m_iterator;
+		char* m_buffer;
+	};
+
 	class SyncOut
 	{
-		//TODO: try to support new pools when buffer is overflown
-		#define MAX_BUFFER_SIZE 1028 //Currently, if an input stream is > MAX_BUFFER_SIZE, assert occours. If an input stream is smaller than MAX_BUFFER_SIZE, the buffer prints and flushes, then adds stream. 
-	
-	public:
-//Singleton functions:
 
+	public:
+		//Singleton set up:
 		SyncOut(SyncOut const&) = delete;
 		void operator=(SyncOut const&) = delete;
 		~SyncOut() {}
 
 		static SyncOut& instance()
 		{
-			static SyncOut* s_Instance = new SyncOut();
-			return *s_Instance;
+			static SyncOut* s_instance = new SyncOut();
+			return *s_instance;
 		}
-//Trace Functions:		
-
-		//bool t_trace if you want timing included in line
-		void trace(bool t_trace,const char* str_...)
-		{					
+		void printBuffer(bool b_ = false)
+		{
+			if (!b_)
+			{
+				std::lock_guard<std::mutex> lck(m_mutex);
+			}
+			printf(m_buffer.c_str());
+		}
+		void printBufferReset(bool b_ = false)
+		{
+			if (!b_)
+			{
+				std::lock_guard<std::mutex> lck(m_mutex);
+			}
+			printf(m_buffer.c_str());
+			m_buffer.clear();
+		}
+		void addToBuffer(bool b_,const char* str_...)
+		{
 			std::lock_guard<std::mutex> lck(m_mutex);
-			
-			if(str_==nullptr || str_[0]=='\0')
+
+			if (str_ == nullptr || str_[0] == '\0')
 				return;
-			va_list args;
-			va_start(args,str_);
-			//Very crude way of doing this but it will do.
-			if(t_trace)
+			m_buffer.it_remOne();
+
+			if(b_)
 			{
 				auto in_time_t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 				struct tm startInfo;
 				localtime_s(&startInfo, &in_time_t);
-				char x[14] ="[00:00:00] : ";
+				char x[14] = "[00:00:00] : ";
 				char temp[3];
 				int i = 0;
-				if(startInfo.tm_hour<10)
+				if (startInfo.tm_hour < 10)
 				{
-					temp[0]='0';			
+					temp[0] = '0';
 					i++;
 					sprintf_s(temp + i, 2, "%d", startInfo.tm_hour);
-				}				
+				}
 				else
-					sprintf_s(temp+i,3,"%d",startInfo.tm_hour);
+					sprintf_s(temp + i, 3, "%d", startInfo.tm_hour);
 				x[1] = temp[0];
 				x[2] = temp[1];
-				i=0;
-				if(startInfo.tm_min<10)
+				i = 0;
+				if (startInfo.tm_min < 10)
 				{
-					temp[0]='0';			
-					i++;		
-					sprintf_s(temp+i,2,"%d",startInfo.tm_min);
+					temp[0] = '0';
+					i++;
+					sprintf_s(temp + i, 2, "%d", startInfo.tm_min);
 				}
 				else
 					sprintf_s(temp + i, 3, "%d", startInfo.tm_min);
 
 				x[4] = temp[0];
 				x[5] = temp[1];
-				i=0;
-				if(startInfo.tm_sec<10)
+				i = 0;
+				if (startInfo.tm_sec < 10)
 				{
-					temp[0]='0';			
-					i++;		
-					sprintf_s(temp+i,2,"%d",startInfo.tm_sec);
+					temp[0] = '0';
+					i++;
+					sprintf_s(temp + i, 2, "%d", startInfo.tm_sec);
 				}
 				else
 					sprintf_s(temp + i, 3, "%d", startInfo.tm_sec);
@@ -90,116 +205,100 @@ namespace customLog
 				x[7] = temp[0];
 				x[8] = temp[1];
 
-				addToBuffer(x,"%s");
+				uint j = 0;
+				while (x[j] != '\0')
+				{
+					if (m_buffer.capacity() == m_buffer.size() + 1)
+					{
+						m_buffer.push_back('\0');
+						printBufferReset(true);
+					}
+					m_buffer.push_back(x[j]);
+					j++;
+				}
 			}
-			unsigned int i = 0;
-			while(str_[i]!='\0')
+
+			va_list args;
+			va_start(args, str_);
+			uint i = 0;
+			while (str_[i] != '\0')
 			{
-				if(str_[i]=='%')
-				{					
-					char x[3] = {str_[i],str_[i+1],'\0'};
-					addToBuffer(va_arg(args,char*),x);
-					i+=1;
+				if (m_buffer.capacity() == m_buffer.size() + 1)
+				{
+					m_buffer.push_back('\0');
+					printBufferReset(true);
+				}
+
+				if (str_[i] == '%')
+				{
+					char temp[64] = { 0 };
+					char format[3] = { str_[i], str_[i + 1], '\0' };
+					i++;
+					uint offset = sprintf_s(temp, 64, format, va_arg(args, char*));
+					uint j = 0;
+					while (temp[j] != '\0')
+					{
+						if (m_buffer.capacity() == m_buffer.size() + 1)
+						{
+							m_buffer.push_back('\0');
+							printBufferReset(true);
+						}
+						m_buffer.push_back(temp[j]);
+						j++;
+					}
 				}
 				else
-					addToBuffer(*(str_+i));
-				i++;				
-			}
-			addToBuffer('\0');
-		}
-		//bool mutex_ indicates if mutex is already locked.
-		//mutex_ = true when the previous function already is locked. 
-		void printBufferReset(bool mutex_ = false)
-		{
-			if(!mutex_)
-				std::scoped_lock<std::mutex> lck(m_mutex);
-			printBuffer(true);
-			m_count = 0;			
-		}
-		void printBuffer(bool mutex_ = false)
-		{
-			if(!mutex_)
-				std::scoped_lock<std::mutex> lck(m_mutex);
-			if(m_count==0)
-				return;
-				
-			unsigned short i = 0;
-			unsigned short prevStart = 0;
-			while(prevStart!=m_count)
-			{
-				while(*(m_buffer+i)!='\0')
 				{
-					i++;
+					m_buffer.push_back(str_[i]);
 				}
 				i++;
-				printf((char*)(m_buffer+prevStart));
-				prevStart = i;
-				assert(prevStart<=m_count);
 			}
+			m_buffer.push_back('\0');
 		}
-		//Function to allow to easily set up its own thread for testing
-		//The printbuffer() would probably be added in a main frame thread (very expensive for a single class to run its own thread)
-		std::thread autoThread(std::chrono::milliseconds ms_)
+		
+
+		std::thread startThread(std::chrono::milliseconds ms_)
 		{
-			return std::thread(&SyncOut::Tick,this);
+			return std::thread(&SyncOut::Tick, this);
 		}
 		void stopThread()
 		{
-			m_isThreadStart=false;
+			m_isThreadStart = false;
 		}
+
+
+		//Trace Functions:		
+	private:
+		SyncOut()
+			:
+			m_buffer(StringBuffer((uint)MAX_BUFFER_SIZE))
+			, m_isThreadStart(false)
+		{}
+
 		void Tick()
 		{
 			assert(!m_isThreadStart);
 			m_isThreadStart = true;
 			using namespace std::chrono_literals;
-			while(m_isThreadStart)
+			while (m_isThreadStart)
 			{
 				printBufferReset();
 				std::this_thread::sleep_for(16ms);
 			}
 			printBufferReset();
 		}
-	private:
-		SyncOut()
-		: 
-		m_buffer((char*)malloc(sizeof(char[MAX_BUFFER_SIZE]))),
-		m_count(0),
-		m_isThreadStart(false)
-		{}
-		//any other STRING type
-		void addToBuffer(const char* t_,const char* format_)
-		{
-			char temp[64];
-			int offset = sprintf_s(temp,64, format_, t_);
-			//assert(m_count+offset<=MAX_BUFFER_SIZE); //Exceeded buffer size. TODO: Add the capability of overflow
-			if(m_count + offset > MAX_BUFFER_SIZE)
-				printBufferReset(true);
-			for(int i =0; i<offset;i++)
-				addToBuffer(*(temp+i));				
-		}
-		//char only
-		void addToBuffer(const char& c_)
-		{
-			//assert(m_count + 1 <= MAX_BUFFER_SIZE); //Exceeded buffer size. TODO: Add the capability of overflow
-			if (m_count + 1 > MAX_BUFFER_SIZE)
-				printBufferReset(true);
-			*(m_buffer+m_count) = c_;
-				m_count++;
-		}
-		
-		std::mutex m_mutex; //locking for synchronized reading and writing
-		//m_count will always be on the \0 of the last string
-		char* m_buffer; // TODO: maybe have a vector of these, to allow  for overflow. 
-		unsigned short int m_count;	//current position of last alive string's '\0'
+
+		StringBuffer m_buffer;// stores multiple string objects, kind of like a split pool of char's
 		bool m_isThreadStart; //delegates when thread stops
-	};	
+		std::mutex m_mutex; //locking for synchronized reading and writing
+	};
 }
 
 //Log Macros
-#define printBufferReset SyncOut::instance().printBufferReset
-#define printBuffer SyncOut::instance().printBuffer
-#define startAutoThread SyncOut::instance().autoThread
-#define stopAutoThread SyncOut::instance().stopThread
+#define printBuffer_() customLog::SyncOut::instance().printBuffer()
+#define printBufferReset_() customLog::SyncOut::instance().printBufferReset()
+#define autoThreadStart_(x) customLog::SyncOut::instance().startThread(x)
+#define autoThreadStop_() customLog::SyncOut::instance().stopThread()
 
-#define C_TRACE(...) customLog::SyncOut::instance().trace(false,__VA_ARGS__);
-#define T_TRACE(...) customLog::SyncOut::instance().trace(true, __VA_ARGS__);
+#define C_TRACE(...) customLog::SyncOut::instance().addToBuffer(false,__VA_ARGS__)
+#define T_TRACE(...) customLog::SyncOut::instance().addToBuffer(true, __VA_ARGS__)
