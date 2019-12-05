@@ -18,8 +18,6 @@ File: ObserverPattern.h--------------------*
 #include <shared_mutex>
 #include "SynchronousLog.h"
 
-//TODO: check how many threads access this objects, if only one, no need for mutexes. Mutexes only work with child threads... (didnt know this...)
-
 class Subject;
 
 class Observer

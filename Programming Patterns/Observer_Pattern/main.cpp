@@ -10,7 +10,7 @@ File: main.cpp-----------------------------*
 #include <iostream>
 #include <chrono>
 #include <thread>
-#include <sstream> 
+#include <sstream> // TODO: Don't rely on sstream, use some fixed char[] buffer instead 
 #include <shared_mutex>
 
 #define OBSERVER_PATTERN 1
