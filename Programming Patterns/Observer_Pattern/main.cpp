@@ -13,10 +13,13 @@ File: main.cpp-----------------------------*
 #include <sstream> // TODO: Don't rely on sstream, use some fixed char[] buffer instead 
 #include <shared_mutex>
 
+#include "Instrumentation.inl"
+#include "SynchronousLog.inl"
+
 #define OBSERVER_PATTERN 1
 #if OBSERVER_PATTERN
 
-#include "ObserverPattern.h"
+#include "ObserverPattern.inl"
 class AtomicTime : public Subject
 {
 private:
@@ -50,13 +53,12 @@ private:
 					start = std::chrono::system_clock::now();
 					lck.unlock();
 					UpdateObservers();
-					C_TRACE("---------------------------------------------\n");
+					C_TRACE("---------------------------------------------");
 				}
 			}
 			std::this_thread::sleep_for(15ms);
 		}
 	}
-
 
 public:
 	AtomicTime(long long delay)
@@ -106,7 +108,7 @@ public:
 	{
 		std::unique_lock<std::shared_mutex> lk(m_mutex);
 		AtomicTime* target = static_cast<AtomicTime*>(s);
-		T_TRACE("Observer ID: %d Time: %s\n" , thisId, target->ObserGetTimeString().c_str());
+		T_TRACE("Observer ID: %d Time: %s" , thisId, target->ObserGetTimeString().c_str());
 	}
 	unsigned int GetID()
 	{
@@ -120,47 +122,49 @@ public:
 		auto it = m_ObserverMap.begin();
 		if (it == m_ObserverMap.end())
 		{
-			T_TRACE("NO SUBSCRIPTIONS!\n");
+			T_TRACE("NO SUBSCRIPTIONS!");
 		}
 		for (auto it : m_ObserverMap)
 		{
-			C_TRACE("Subject object: %u\n Previous ID: %u\nNext ID: %u\n" , it.first , it.second.m_previous, it.second.m_next );
+			C_TRACE("Subject object: 0x%x\nPrevious ID: 0x%x\nNext ID: 0x%x" , it.first , it.second.m_previous, it.second.m_next );
 		}
 	}
 };
 void PrintSubscribedObservers(AtomicTime* _s) //concrete type specific
 {
-	T_TRACE("Printing out subscriptions. ----------------------\n");
+	T_TRACE("Printing out subscriptions. ----------------------");
 
 	Observer* current = _s->GetObserverLinkedList();
 	if (current == nullptr)
 	{
-		T_TRACE("No Subscriptions\n");
+		T_TRACE("No Subscriptions");
 		return;
 	}
 	while (current != nullptr)
 
 	{
-		T_TRACE("OBSERVER ID: %d \n" , static_cast<LocalClock*>(current)->GetID());
+		T_TRACE("OBSERVER ID: %d" , static_cast<LocalClock*>(current)->GetID());
 		current = current->GetNext(_s);
 	}
 
 }
 
-unsigned int LocalClock::count = 0;
-	
+unsigned int LocalClock::count = 0;	
 	
 int main()
 {
+	InstrumentationTimer tm("main");
+	
 	using namespace std::chrono_literals;
-	std::thread thread_logging = autoThreadStart_(15ms);
+
+	std::thread thread_logging = AutoThreadStart_(15ms);
 	
 
 	C_TRACE("The Observer Pattern.\n");
-	C_TRACE("The AtomicTime object (the subject) runs on it's own thread keeping time duration,\n");
-	C_TRACE("updates any objects (observers) that have subscribed to the subject over a period of time.\n");
-	C_TRACE("Three observers will be subscribed to one subject in this demonstration.\n");
-	C_TRACE("Press any key to start.\n\n");
+	C_TRACE("The AtomicTime object (the subject) runs on it's own thread keeping time duration,");
+	C_TRACE("updates any objects (observers) that have subscribed to the subject over a period of time.");
+	C_TRACE("Three observers will be subscribed to one subject in this demonstration.");
+	C_TRACE("Press any key to start.\n");
 	std::cin.get();
 
 	AtomicTime* subject = new AtomicTime(200);
@@ -192,53 +196,58 @@ int main()
 	std::this_thread::sleep_for(3s);
 
 	subject->UnsubscribeObserver(observer1);
-	T_TRACE("UNSUBSCRIBED: %u\n", observer1->GetID());
+	T_TRACE("UNSUBSCRIBED: %u", observer1->GetID());
 
 	delete observer3;
-	T_TRACE("DELETED: %u\n", observer3->GetID());
+	T_TRACE("DELETED: %u", 3);
 
 	delete observer4;
-	T_TRACE("DELETED: %u\n", observer4->GetID());
+	T_TRACE("DELETED: %u", 4);
 
 	PrintSubscribedObservers(subject);
 
-	T_TRACE("PRESS TO DELETE SUBJECT! \n");
+	T_TRACE("PRESS TO DELETE SUBJECT!");
 
 	std::cin.get();
 	subject->SubscribeObserver(observer5);
 	//Check
 	observer1->PrintNeighbours();//unsubscribed, no neighbors
 	observer2->PrintNeighbours();//subscribed
-	//observer3->PrintNeighbours();//deleted
-	//observer4->PrintNeighbours();//deleted
+	
 	observer5->PrintNeighbours();//resubscribed
-	//subject->DeInit(); //check if initiating DeInit() or delete in either order causes crash
 	delete subject;
-	T_TRACE("SUBJECT DELETED! \n");
+	T_TRACE("SUBJECT DELETED!");
 	//Check
 	observer1->PrintNeighbours();
 	observer2->PrintNeighbours();
-	//observer3->PrintNeighbours();//deleted
-	//observer4->PrintNeighbours();//deleted
+	
 	observer5->PrintNeighbours();
-	for(int i =0;i<50;i++) //Use this to check for buffer overflow
-	T_TRACE("TEST_SPAM! \n");
-
+	InstrumentationTimer testSpam("TEST_SPAM!");
+	for(int i =0;i<50;i++)
+	T_TRACE("TEST_SPAM!");
+	testSpam.Stop();
 	thread.join();
-	autoThreadStop_();
+	tm.Stop();
+	AutoThreadStop_();
 	thread_logging.join();
-	std::cin.get();	
+
+	InstrumentationTimer testSpam2("TEST_SPAM!_2");
+	for (int i = 0; i < 50; i++) //Use this to check for buffer overflow
+	{
+		T_TRACE("TEST_SPAM!_TWO");
+		PrintBufferReset_();
+	}
+	testSpam2.Stop();
+	PrintBufferReset_();
+
+	std::cin.get();
 }
 #else
 
-#include "SynchronousLog.h"
+
 
 int main()
 {
-	C_TRACE("-------------------------%d-------%d---%d---%d-------\n",22,23,24,25);
-	printBufferReset_();
-	std::cin.get();
 
-	return 0;
 }
 #endif
