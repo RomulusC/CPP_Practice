@@ -1,0 +1,7 @@
+﻿  main.cpp
+  Generating code
+  14 of 626 functions ( 2.2%) were compiled, the rest were copied from previous compilation.
+    5 functions were new in current compilation
+    15 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  ObserverP.vcxproj -> H:\Dev\CPP_Practice\Programming Patterns\Observer_Pattern\ObserverP\x64\Release\ObserverP.exe

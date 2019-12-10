@@ -13,13 +13,13 @@ File: main.cpp-----------------------------*
 #include <sstream> // TODO: Don't rely on sstream, use some fixed char[] buffer instead 
 #include <shared_mutex>
 
-#include "Instrumentation.inl"
-#include "SynchronousLog.inl"
+#include "Instrumentation.cpp"
+#include "SynchronousLog.cpp"
 
 #define OBSERVER_PATTERN 1
 #if OBSERVER_PATTERN
 
-#include "ObserverPattern.inl"
+#include "ObserverPattern.cpp"
 class AtomicTime : public Subject
 {
 private:
@@ -35,6 +35,8 @@ private:
 	{
 		while (stop == false)
 		{
+			PROFILE_SCOPE("AtomicTime::Tick");
+
 				using namespace std::chrono_literals;
 			{
 				std::unique_lock<std::shared_mutex> lck(m_mutex);
@@ -66,6 +68,8 @@ public:
 	
 	std::string ObserGetTimeString()
 	{
+		PROFILE_FUNCTION();
+
 		std::shared_lock<std::shared_mutex> sLock(m_mutex);
 		auto in_time_t = std::chrono::system_clock::to_time_t(start);
 		struct tm startInfo;
@@ -84,6 +88,8 @@ public:
 	}
 	void Stop()
 	{
+		PROFILE_FUNCTION();
+
 		std::unique_lock<std::shared_mutex> uLock(m_mutex);
 		stop = true;
 		return;
@@ -106,6 +112,8 @@ public:
 
 	virtual void Update(Subject* s) override
 	{
+		PROFILE_FUNCTION();
+
 		std::unique_lock<std::shared_mutex> lk(m_mutex);
 		AtomicTime* target = static_cast<AtomicTime*>(s);
 		T_TRACE("Observer ID: %d Time: %s" , thisId, target->ObserGetTimeString().c_str());
@@ -116,6 +124,8 @@ public:
 	}	
 	void PrintNeighbours()
 	{
+		PROFILE_FUNCTION();
+
 		std::unique_lock<std::shared_mutex> lk(m_mutex);
 		T_TRACE("LocalClock ID: %u " , this->GetID());
 		
@@ -132,6 +142,8 @@ public:
 };
 void PrintSubscribedObservers(AtomicTime* _s) //concrete type specific
 {
+	PROFILE_FUNCTION();
+
 	T_TRACE("Printing out subscriptions. ----------------------");
 
 	Observer* current = _s->GetObserverLinkedList();
@@ -146,108 +158,107 @@ void PrintSubscribedObservers(AtomicTime* _s) //concrete type specific
 		T_TRACE("OBSERVER ID: %d" , static_cast<LocalClock*>(current)->GetID());
 		current = current->GetNext(_s);
 	}
-
 }
 
 unsigned int LocalClock::count = 0;	
 	
 int main()
 {
-	InstrumentationTimer tm("main");
-	
+	InstrumentationTimer* tm = new InstrumentationTimer(__FUNCSIG__);
+
+	PROFILE_BEGIN_SESSION("main_scope","profiling.json");
+	PROFILE_FUNCTION();
 	using namespace std::chrono_literals;
-
-	std::thread thread_logging = AutoThreadStart_(15ms);
-	
-
-	C_TRACE("The Observer Pattern.\n");
-	C_TRACE("The AtomicTime object (the subject) runs on it's own thread keeping time duration,");
-	C_TRACE("updates any objects (observers) that have subscribed to the subject over a period of time.");
-	C_TRACE("Three observers will be subscribed to one subject in this demonstration.");
-	C_TRACE("Press any key to start.\n");
-	std::cin.get();
-
-	AtomicTime* subject = new AtomicTime(200);
-	LocalClock* observer1 = new LocalClock();
-	LocalClock* observer2 = new LocalClock();
-	LocalClock* observer3 = new LocalClock();
-	LocalClock* observer4 = new LocalClock();
-	LocalClock* observer5 = new LocalClock();
-
-	PrintSubscribedObservers(subject);
-	subject->UnsubscribeObserver(observer1);
-
-	subject->SubscribeObserver(observer1);
-	PrintSubscribedObservers(subject);
-
-	subject->SubscribeObserver(observer2);
-	subject->SubscribeObserver(observer3);
-	subject->SubscribeObserver(observer4);
-	//Additional same observers to subject subscription to test unintentional additional subscriptions.
-	PrintSubscribedObservers(subject);
-
-	subject->SubscribeObserver(observer3); //test: Refuse duplicate subscription
-
-	subject->UnsubscribeObserver(observer3); 
-	subject->UnsubscribeObserver(observer5); //test: Refuse to unsubscribed an already unsubscribed observer
-	PrintSubscribedObservers(subject);
-	
-	auto thread = subject->Start();
-	std::this_thread::sleep_for(3s);
-
-	subject->UnsubscribeObserver(observer1);
-	T_TRACE("UNSUBSCRIBED: %u", observer1->GetID());
-
-	delete observer3;
-	T_TRACE("DELETED: %u", 3);
-
-	delete observer4;
-	T_TRACE("DELETED: %u", 4);
-
-	PrintSubscribedObservers(subject);
-
-	T_TRACE("PRESS TO DELETE SUBJECT!");
-
-	std::cin.get();
-	subject->SubscribeObserver(observer5);
-	//Check
-	observer1->PrintNeighbours();//unsubscribed, no neighbors
-	observer2->PrintNeighbours();//subscribed
-	
-	observer5->PrintNeighbours();//resubscribed
-	delete subject;
-	T_TRACE("SUBJECT DELETED!");
-	//Check
-	observer1->PrintNeighbours();
-	observer2->PrintNeighbours();
-	
-	observer5->PrintNeighbours();
-	InstrumentationTimer testSpam("TEST_SPAM!");
-	for(int i =0;i<50;i++)
-	T_TRACE("TEST_SPAM!");
-	testSpam.Stop();
-	thread.join();
-	tm.Stop();
-	AutoThreadStop_();
-	thread_logging.join();
-
-	InstrumentationTimer testSpam2("TEST_SPAM!_2");
-	for (int i = 0; i < 50; i++) //Use this to check for buffer overflow
+	LogThreadStart_(15ms);
 	{
-		T_TRACE("TEST_SPAM!_TWO");
-		PrintBufferReset_();
-	}
-	testSpam2.Stop();
-	PrintBufferReset_();
+		C_TRACE("The Observer Pattern.\n");
+		C_TRACE("The AtomicTime object (the subject) runs on it's own thread keeping time duration,");
+		C_TRACE("updates any objects (observers) that have subscribed to the subject over a period of time.");
+		C_TRACE("Three observers will be subscribed to one subject in this demonstration.");
+		C_TRACE("Press any key to start.\n");
+		std::cin.get();
 
+		AtomicTime* subject = new AtomicTime(200);
+		LocalClock* observer1 = new LocalClock();
+		LocalClock* observer2 = new LocalClock();
+		LocalClock* observer3 = new LocalClock();
+		LocalClock* observer4 = new LocalClock();
+		LocalClock* observer5 = new LocalClock();
+
+		PrintSubscribedObservers(subject);
+		subject->UnsubscribeObserver(observer1);
+
+		subject->SubscribeObserver(observer1);
+		PrintSubscribedObservers(subject);
+
+		subject->SubscribeObserver(observer2);
+		subject->SubscribeObserver(observer3);
+		subject->SubscribeObserver(observer4);
+		//Additional same observers to subject subscription to test unintentional additional subscriptions.
+		PrintSubscribedObservers(subject);
+
+		subject->SubscribeObserver(observer3); //test: Refuse duplicate subscription
+
+		subject->UnsubscribeObserver(observer3);
+		subject->UnsubscribeObserver(observer5); //test: Refuse to unsubscribed an already unsubscribed observer
+		PrintSubscribedObservers(subject);
+
+		auto thread = subject->Start();
+		std::this_thread::sleep_for(3s);
+
+		subject->UnsubscribeObserver(observer1);
+		T_TRACE("UNSUBSCRIBED: %u", observer1->GetID());
+
+		delete observer3;
+		T_TRACE("DELETED: %u", 3);
+
+		delete observer4;
+		T_TRACE("DELETED: %u", 4);
+
+		PrintSubscribedObservers(subject);
+
+		T_TRACE("PRESS TO DELETE SUBJECT!");
+
+		std::cin.get();
+		subject->SubscribeObserver(observer5);
+		//Check
+		observer1->PrintNeighbours();//unsubscribed, no neighbors
+		observer2->PrintNeighbours();//subscribed
+
+		observer5->PrintNeighbours();//resubscribed
+		delete subject;
+		T_TRACE("SUBJECT DELETED!");
+		//Check
+		observer1->PrintNeighbours();
+		observer2->PrintNeighbours();
+		observer5->PrintNeighbours();
+		{
+			PROFILE_SCOPE("TEST_SPAM!_1");
+			for (int i = 0; i < 50; i++)
+				T_TRACE("TEST_SPAM!");
+		}
+		{
+			PROFILE_SCOPE("TEST_SPAM!_2");
+			LogThreadStop_(); // this can go at end of scope
+			for (int i = 0; i < 50; i++)
+			{
+				T_TRACE("TEST_SPAM!");
+				PrintBufferReset_();
+			}
+			LogThreadStart_(15ms);
+		}
+		thread.join();
+	}	
+	PROFILE_END_SESSION();
+	LogThreadStop_(); // this can go at end of scope
 	std::cin.get();
 }
 #else
 
-
-
+// testing
 int main()
 {
 
+	std::cin.get();
 }
 #endif
