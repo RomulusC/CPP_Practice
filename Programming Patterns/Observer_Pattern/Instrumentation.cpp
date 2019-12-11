@@ -12,6 +12,7 @@ File:Instrumentation.inl-------------------*
 #include <chrono>
 #include <fstream>
 #include <algorithm>
+#include <thread>
 #define PROFILE 1
 
 struct ProfileResult

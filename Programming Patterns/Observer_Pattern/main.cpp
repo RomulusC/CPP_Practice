@@ -251,6 +251,9 @@ int main()
 	//TODO:
 	// Fix writing to .json too fast, buffer it first
 	// Actually have a const char* double buffer rather than a double buffer container of strings
+
+	PROFILE_BEGIN_SESSION("main_scope", "profiling.json");
+
 	{
 		PROFILE_SCOPE("TEST_SPAM!_1");
 		for (int i = 0; i < 50; i++)
@@ -269,9 +272,20 @@ int main()
 		PROFILE_SCOPE("PRINTF_SPAM!");
 		for (int i = 0; i < 50; i++)
 		{
-			printf("TEST_SPAM!");
+			printf("TEST_SPAM!\n");
+		}
+		
+	}
+	{
+		PROFILE_SCOPE("std::cout_SPAM!");
+		for (int i = 0; i < 50; i++)
+		{
+			std::cout << "TEST_SPAM!\n";
 		}
 	}
+
+	PROFILE_END_SESSION();
+
 	std::cin.get();
 }
 #endif
