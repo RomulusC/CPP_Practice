@@ -128,8 +128,6 @@ private:
 	std::chrono::time_point<std::chrono::high_resolution_clock> m_startTimePoint;
 };
 #if PROFILE
-
-
 	#define PROFILE_BEGIN_SESSION(name, filepath) Instrumentor::Instance().BeginSession(name, filepath)
 	#define PROFILE_END_SESSION() Instrumentor::Instance().EndSession()
 	#define PROFILE_SCOPE(name) InstrumentationTimer timer##__LINE__(name);

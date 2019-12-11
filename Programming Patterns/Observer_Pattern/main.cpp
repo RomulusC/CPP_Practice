@@ -10,89 +10,66 @@ File: main.cpp-----------------------------*
 #include <iostream>
 #include <chrono>
 #include <thread>
-#include <sstream> // TODO: Don't rely on sstream, use some fixed char[] buffer instead 
 #include <shared_mutex>
 
 #include "Instrumentation.cpp"
 #include "SynchronousLog.cpp"
 
-#define OBSERVER_PATTERN 1
+#define OBSERVER_PATTERN 0
 #if OBSERVER_PATTERN
 
 #include "ObserverPattern.cpp"
 class AtomicTime : public Subject
 {
 private:
-	std::shared_mutex m_mutex;
 	
 	long long m_msDelay;	
-	std::chrono::time_point<std::chrono::system_clock> start; 
 
 	bool stop;
 	bool init; 
+
+	std::thread m_thread;
 
 	void Tick()
 	{
 		while (stop == false)
 		{
-			PROFILE_SCOPE("AtomicTime::Tick");
-
-				using namespace std::chrono_literals;
 			{
-				std::unique_lock<std::shared_mutex> lck(m_mutex);
-				if (init == false)
-				{
-					start = std::chrono::system_clock::now();
-					init = true;
-				}
-				auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
+				PROFILE_FUNCTION();
 
-				if (duration.count() > m_msDelay)
-				{
-					m_msDelay += 50;
-					if (m_msDelay > 1000)
-						m_msDelay = 200;
-					start = std::chrono::system_clock::now();
-					lck.unlock();
-					UpdateObservers();
-					C_TRACE("---------------------------------------------");
-				}
+				m_msDelay += 50;
+				if (m_msDelay > 1000)
+					m_msDelay = 200;
+				std::this_thread::sleep_for((std::chrono::milliseconds)m_msDelay);
+				UpdateObservers();
+				C_TRACE("---------------------------------------------");				
 			}
-			std::this_thread::sleep_for(15ms);
 		}
 	}
 
 public:
-	AtomicTime(long long delay)
-		:init(false), stop(false), m_msDelay(delay) {}
-	
-	std::string ObserGetTimeString()
+	long long GetDelay()
 	{
-		PROFILE_FUNCTION();
-
-		std::shared_lock<std::shared_mutex> sLock(m_mutex);
-		auto in_time_t = std::chrono::system_clock::to_time_t(start);
-		struct tm startInfo;
-		localtime_s(&startInfo, &in_time_t);
-		std::stringstream ss;
-		ss << startInfo.tm_hour << ":" << startInfo.tm_min << ":" << startInfo.tm_sec << " Delay:" << std::to_string(m_msDelay) << "ms";
-		return ss.str();
+		return m_msDelay;
 	}
+	AtomicTime(long long delay)
+		:init(false), stop(false), m_msDelay(delay) {}	
+
 	~AtomicTime()
 	{
-		Stop();
+		if(!stop)
+			Stop();
 	}
-	std::thread Start()
+	void Start()
 	{
-		return std::thread(&AtomicTime::Tick, this);
+		m_thread = std::thread(&AtomicTime::Tick, this);
 	}
 	void Stop()
 	{
 		PROFILE_FUNCTION();
 
-		std::unique_lock<std::shared_mutex> uLock(m_mutex);
 		stop = true;
-		return;
+		m_thread.join();
 	}
 };
 
@@ -116,7 +93,11 @@ public:
 
 		std::unique_lock<std::shared_mutex> lk(m_mutex);
 		AtomicTime* target = static_cast<AtomicTime*>(s);
-		T_TRACE("Observer ID: %d Time: %s" , thisId, target->ObserGetTimeString().c_str());
+
+		auto in_time_t = std::chrono::system_clock::to_time_t(std::chrono::time_point<std::chrono::system_clock>(std::chrono::system_clock::now()));
+		struct tm startInfo;
+		localtime_s(&startInfo, &in_time_t);
+		T_TRACE("Observer ID: %d Time: [%d:%d:%d] Delay: %dms" , thisId, startInfo.tm_hour, startInfo.tm_min, startInfo.tm_sec, target->GetDelay());
 	}
 	unsigned int GetID()
 	{
@@ -164,10 +145,8 @@ unsigned int LocalClock::count = 0;
 	
 int main()
 {
-	InstrumentationTimer* tm = new InstrumentationTimer(__FUNCSIG__);
-
 	PROFILE_BEGIN_SESSION("main_scope","profiling.json");
-	PROFILE_FUNCTION();
+	
 	using namespace std::chrono_literals;
 	LogThreadStart_(15ms);
 	{
@@ -203,7 +182,7 @@ int main()
 		subject->UnsubscribeObserver(observer5); //test: Refuse to unsubscribed an already unsubscribed observer
 		PrintSubscribedObservers(subject);
 
-		auto thread = subject->Start();
+		subject->Start();
 		std::this_thread::sleep_for(3s);
 
 		subject->UnsubscribeObserver(observer1);
@@ -232,25 +211,36 @@ int main()
 		observer1->PrintNeighbours();
 		observer2->PrintNeighbours();
 		observer5->PrintNeighbours();
+
+		LogThreadStop_(); // this can go at end of scope
+		customLog::SyncOut::Instance().PrintBufferReset();
 		{
 			PROFILE_SCOPE("TEST_SPAM!_1");
 			for (int i = 0; i < 50; i++)
 				T_TRACE("TEST_SPAM!");
+			customLog::SyncOut::Instance().PrintBufferReset();
 		}
 		{
 			PROFILE_SCOPE("TEST_SPAM!_2");
-			LogThreadStop_(); // this can go at end of scope
 			for (int i = 0; i < 50; i++)
 			{
 				T_TRACE("TEST_SPAM!");
 				PrintBufferReset_();
 			}
-			LogThreadStart_(15ms);
 		}
-		thread.join();
+		{
+			PROFILE_SCOPE("PRINTF_SPAM!");
+			for (int i = 0; i < 50; i++)
+			{
+				printf("TEST_SPAM!");
+			}
+		}
+
+
+		LogThreadStart_(15ms);
 	}	
-	PROFILE_END_SESSION();
 	LogThreadStop_(); // this can go at end of scope
+	PROFILE_END_SESSION();
 	std::cin.get();
 }
 #else
@@ -258,7 +248,30 @@ int main()
 // testing
 int main()
 {
-
+	//TODO:
+	// Fix writing to .json too fast, buffer it first
+	// Actually have a const char* double buffer rather than a double buffer container of strings
+	{
+		PROFILE_SCOPE("TEST_SPAM!_1");
+		for (int i = 0; i < 50; i++)
+			T_TRACE("TEST_SPAM!");
+		customLog::SyncOut::Instance().PrintBufferReset();
+	}
+	{
+		PROFILE_SCOPE("TEST_SPAM!_2");
+		for (int i = 0; i < 50; i++)
+		{
+			T_TRACE("TEST_SPAM!");
+			PrintBufferReset_();
+		}
+	}
+	{
+		PROFILE_SCOPE("PRINTF_SPAM!");
+		for (int i = 0; i < 50; i++)
+		{
+			printf("TEST_SPAM!");
+		}
+	}
 	std::cin.get();
 }
 #endif
